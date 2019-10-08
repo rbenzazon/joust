@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@babel/runtime": "^7.6.2",
+    "@babylonjs/core": "^4.0.3",
+    "@babylonjs/materials": "^4.0.3",
+    "cannon": "^0.6.2",
+    "earcut": "^2.2.1",
+    "pepjs": "^0.5.2",
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
     "react-scripts": "3.2.0"
