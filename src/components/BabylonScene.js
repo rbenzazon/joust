@@ -15,7 +15,9 @@ class BabylonScene extends React.Component {
     engineOptions: PropTypes.object,
     antialias: PropTypes.bool,
     adaptToDeviceRatio: PropTypes.bool,
-    onSceneMount: PropTypes.func.isRequired
+    onSceneMount: PropTypes.func.isRequired,
+    onKeyDown: PropTypes.func.isRequired,
+    onKeyUp: PropTypes.func.isRequired
   }
 
   static defaultProps = {
@@ -39,7 +41,7 @@ class BabylonScene extends React.Component {
       scene: this.scene,
       engine: this.engine,
       canvas: this.canvas
-    })
+    });
     // start render loop
     this.engine.runRenderLoop(() => {
       if (this.scene) {
@@ -69,11 +71,18 @@ class BabylonScene extends React.Component {
       this.canvas.onmousewheel = preventDefault
     }
   }
-
+  onKeyDown = (e) => {
+    this.props.onKeyDown(e);
+  }
+  onKeyUp = (e) => {
+    this.props.onKeyUp(e);
+  }
   render () {
     return (
       <canvas
         ref={this.onCanvasLoaded}
+        onKeyDown={this.onKeyDown}
+        onKeyUp={this.onKeyUp}
         style={{ width: '100%', height: '100%', outline: 'none' }}
       />
     )

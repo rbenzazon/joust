@@ -22,9 +22,66 @@ import BabylonScene from './BabylonScene'
 
 const SHOW_WORLD_AXIS = false
 
-const Playground = () => {
+class Playground extends React.Component{
+  onSpacePressed = () =>{
+    console.log("spacebar");
+    let horizImpulse = this.isNotSpeeding() ?this.keyDirection/2:0;
+    this.sphere.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.6, 1, 0), this.sphere.getAbsolutePosition())
+  }
+  isNotSpeeding(){
+    return this.sphere.physicsImpostor.getLinearVelocity().x*this.keyDirection < 5;
+  }
+  isTouchingGround(){
+    return this.sphere.position.y-2 < this.land.position.y+0.05;
+  }
+  onKeyDown = (e) => {
+    e.preventDefault();
+    if (e.key === " ") {
+      this.onSpacePressed();
+    }else if(e.key === "ArrowRight"){
+      this.keyDirection = 1;
+      this.sphere.physicsImpostor.friction = 0.01;
+      if(!this.accelerateInterval){
+        let self = this;
+        this.accelerateInterval = setInterval(()=>{
+          console.log("setInterval accelerate");
+          self.accelerate.apply(self);
+        },200);
+      }
+    }else if(e.key === "ArrowLeft"){
+      this.keyDirection = -1;
+      this.sphere.physicsImpostor.friction = 0.01;
+      if(!this.accelerateInterval){
+        let self = this;
+        this.accelerateInterval = setInterval(()=>{
+          console.log("setInterval accelerate");
+          self.accelerate.apply(self);
+        },200);
+      }
+    }
+  }
+  onKeyUp = (e) => {
+    e.preventDefault();
+    if(e.key === "ArrowRight" || e.key === "ArrowLeft"){
+      this.keyDirection = 0;
+      if(this.accelerateInterval){
+        console.log("clearInterval");
+        clearInterval(this.accelerateInterval);
+        this.accelerateInterval = null;
+      }
+      this.sphere.physicsImpostor.friction = 0.5;
+    }
+  }
+  accelerate(){
+    console.log("accelerate velocity = "+this.sphere.physicsImpostor.getLinearVelocity().x+" keyDirection="+this.keyDirection+" sphere.y="+this.sphere.position.y+" diam="+this.sphere.diameter);
+    if( this.keyDirection !== 0 &&
+        this.isNotSpeeding() &&
+        this.isTouchingGround() ){
+      this.sphere.physicsImpostor.applyForce(new Vector3(this.keyDirection*40, 0, 0), this.sphere.getAbsolutePosition());
+    }
+  }
   // scene setup
-  const onSceneMount = ({ canvas, scene, engine }) => {
+  onSceneMount = ({ canvas, scene, engine }) => {
     console.log('Babylon scene mounted')
     window.scene = scene // for debug
     var gravityVector = new Vector3(0,-9.81, 0);
@@ -33,14 +90,16 @@ const Playground = () => {
     // camera
     const camera = new ArcRotateCamera(
       'arc-camera',
-      -Math.PI / 2,
-      Math.PI / 4,
-      25,
-      new Vector3(6, 0, -1.5),
+      -Math.PI/2,
+      Math.PI/2,
+      50,
+      new Vector3(0,5,0),
       scene
     )
-    camera.setTarget(Vector3.Zero())
-    camera.attachControl(canvas, true)
+    //camera.setTarget(Vector3.Zero())
+    
+    //camera.attachControl(canvas, true)
+    camera.keysUp = [];camera.keysDown = [];
     // sky (https://doc.babylonjs.com/extensions/sky)
     const skyMaterial = new SkyMaterial('sky-material', scene)
     skyMaterial.backFaceCulling = false
@@ -59,14 +118,14 @@ const Playground = () => {
     )
     light.intensity = 1.5
     // scene
-    createStaticMesh({ scene })
+    this.createStaticMesh({ scene })
     // debug
     if (SHOW_WORLD_AXIS) {
-      showWorldAxis({ size: 5, scene })
+      this.showWorldAxis({ size: 5, scene })
     }
   }
 
-  const createStaticMesh = ({ scene }) => {
+  createStaticMesh = ({ scene }) => {
     const defaultMaterial = new StandardMaterial('default-material', scene)
     defaultMaterial.diffuseColor = new Color3(1, 1, 1)
     const land = GroundBuilder.CreateGround(
@@ -89,16 +148,18 @@ const Playground = () => {
     sphere.position.y = 2
     sphere.position.z = -1
 
-    const cube = BoxBuilder.CreateBox('cube', { size: 1, height: 3 }, scene)
+    /*const cube = BoxBuilder.CreateBox('cube', { size: 1, height: 3 }, scene)
     cube.position = new Vector3(0, 5, 1)
-    cube.material = defaultMaterial
+    cube.material = defaultMaterial*/
 
-    land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0.9}, scene);
-    sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.SphereImpostor,{mass:0.2}, scene);
-    cube.physicsImpostor = new PhysicsImpostor(cube,PhysicsImpostor.BoxImpostor,{mass:.1, restitution: 0.9}, scene);
+    land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0.9,friction:0.01}, scene);
+    sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.BoxImpostor,{mass:0.2}, scene);
+    //cube.physicsImpostor = new PhysicsImpostor(cube,PhysicsImpostor.BoxImpostor,{mass:.1, restitution: 0.9}, scene);
+    this.sphere = sphere;
+    this.land = land;
   }
 
-  const showWorldAxis = ({ size, scene }) => {
+  showWorldAxis = ({ size, scene }) => {
     const axisX = LinesBuilder.CreateLines(
       'axisX',
       {
@@ -126,7 +187,9 @@ const Playground = () => {
   }
 
   // initialise scene rendering
-  return <BabylonScene onSceneMount={onSceneMount} />
+  render(){
+    return <BabylonScene onSceneMount={this.onSceneMount} onKeyDown={this.onKeyDown} onKeyUp={this.onKeyUp}/>
+  }
 }
 
 export default Playground
