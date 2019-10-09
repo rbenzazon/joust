@@ -5,6 +5,7 @@ import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor'
 import { Vector3, Color3 } from '@babylonjs/core/Maths/math'
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera'
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight'
+import { PointLight } from '@babylonjs/core/Lights/pointLight'
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { LinesBuilder } from '@babylonjs/core/Meshes/Builders/linesBuilder'
 import { PlaneBuilder } from '@babylonjs/core/Meshes/Builders/planeBuilder'
@@ -23,16 +24,30 @@ import BabylonScene from './BabylonScene'
 const SHOW_WORLD_AXIS = false
 
 class Playground extends React.Component{
+  constructor(props){
+    super(props);
+    this.keyDirection = 0;
+    this.touching = true;
+  }
+
   onSpacePressed = () =>{
-    console.log("spacebar");
-    let horizImpulse = this.isNotSpeeding() ?this.keyDirection/2:0;
-    this.sphere.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.6, 1, 0), this.sphere.getAbsolutePosition())
+    
+    //let horizImpulse = this.isNotSpeeding() ?this.keyDirection/2:0;
+    let boost = this.getBoost();
+    console.log("spacebar boost"+boost);
+    this.sphere.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.7*boost, 1, 0), this.sphere.getAbsolutePosition())
+    this.resetPosAndAngle();
+    this.touching = false;
+  }
+  getBoost(){
+    let vel = this.sphere.physicsImpostor.getLinearVelocity().x;
+    return vel/Math.abs(vel) === this.keyDirection ? 1 : 2;
   }
   isNotSpeeding(){
-    return this.sphere.physicsImpostor.getLinearVelocity().x*this.keyDirection < 5;
+    return this.sphere.physicsImpostor.getLinearVelocity().x*this.keyDirection < 7;
   }
   isTouchingGround(){
-    return this.sphere.position.y-2 < this.land.position.y+0.05;
+    return this.touching;
   }
   onKeyDown = (e) => {
     e.preventDefault();
@@ -44,7 +59,7 @@ class Playground extends React.Component{
       if(!this.accelerateInterval){
         let self = this;
         this.accelerateInterval = setInterval(()=>{
-          console.log("setInterval accelerate");
+          //console.log("setInterval accelerate");
           self.accelerate.apply(self);
         },200);
       }
@@ -54,7 +69,7 @@ class Playground extends React.Component{
       if(!this.accelerateInterval){
         let self = this;
         this.accelerateInterval = setInterval(()=>{
-          console.log("setInterval accelerate");
+          //console.log("setInterval accelerate");
           self.accelerate.apply(self);
         },200);
       }
@@ -69,23 +84,35 @@ class Playground extends React.Component{
         clearInterval(this.accelerateInterval);
         this.accelerateInterval = null;
       }
-      this.sphere.physicsImpostor.friction = 0.5;
+      this.sphere.physicsImpostor.friction = 1;
     }
   }
+  resetPosAndAngle = () => {
+    let vel = this.sphere.physicsImpostor.getLinearVelocity();
+    vel.z = 0;
+    this.sphere.physicsImpostor.setLinearVelocity(vel);
+    this.sphere.position.z = 0;
+    this.sphere.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
+    this.sphere.rotation = new Vector3(0,0,0);
+  }
   accelerate(){
-    console.log("accelerate velocity = "+this.sphere.physicsImpostor.getLinearVelocity().x+" keyDirection="+this.keyDirection+" sphere.y="+this.sphere.position.y+" diam="+this.sphere.diameter);
+    //console.log(this.sphere.physicsImpostor.pressure);
+    //console.log("accelerate velocity = "+this.sphere.physicsImpostor.getLinearVelocity().x+" keyDirection="+this.keyDirection+" sphere.y="+this.sphere.position.y+" diam="+this.sphere.diameter);
+    this.resetPosAndAngle();
     if( this.keyDirection !== 0 &&
         this.isNotSpeeding() &&
         this.isTouchingGround() ){
-      this.sphere.physicsImpostor.applyForce(new Vector3(this.keyDirection*40, 0, 0), this.sphere.getAbsolutePosition());
+      let boost = this.getBoost();
+      this.sphere.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*1*boost, 0, 0), this.sphere.getAbsolutePosition());
     }
   }
   // scene setup
   onSceneMount = ({ canvas, scene, engine }) => {
-    console.log('Babylon scene mounted')
+    //console.log('Babylon scene mounted')
     window.scene = scene // for debug
     var gravityVector = new Vector3(0,-9.81, 0);
     var physicsPlugin = new CannonJSPlugin();
+    
     scene.enablePhysics(gravityVector, physicsPlugin);
     // camera
     const camera = new ArcRotateCamera(
@@ -93,7 +120,7 @@ class Playground extends React.Component{
       -Math.PI/2,
       Math.PI/2,
       50,
-      new Vector3(0,5,0),
+      new Vector3(0,10,0),
       scene
     )
     //camera.setTarget(Vector3.Zero())
@@ -109,14 +136,16 @@ class Playground extends React.Component{
     const skybox = BoxBuilder.CreateBox('skybox', { size: 1000 }, scene)
     skybox.material = skyMaterial
     // create light
-    const light = new DirectionalLight('light', new Vector3(-1, -2, 1), scene)
-    const lightDistance = 20
+    const light = new PointLight('light', new Vector3(2, 9, -10), scene)
+    const light2 = new PointLight('light', new Vector3(-5, 11, -10), scene)
+    /*const lightDistance = 2
     light.position = new Vector3(
       lightDistance,
       2 * lightDistance,
       lightDistance
-    )
-    light.intensity = 1.5
+    )*/
+    light.intensity = 1
+    light2.intensity = 0.3
     // scene
     this.createStaticMesh({ scene })
     // debug
@@ -130,31 +159,83 @@ class Playground extends React.Component{
     defaultMaterial.diffuseColor = new Color3(1, 1, 1)
     const land = GroundBuilder.CreateGround(
       'land',
-      { width: 20,height: 20, sideOrientation: Mesh.DOUBLESIDE },
+      { width: 100,height: 100, sideOrientation: Mesh.DOUBLESIDE },
       scene
     )
 
-    //land.rotation = new Vector3(Math.PI / 2, 0, 0)
-    land.material = defaultMaterial
+    const ceiling = BoxBuilder.CreateBox(
+      'ceiling',
+      { size: 100,height: 0.2 },
+      scene
+    )
+    
+    ceiling.position.y = 20;
+    ceiling.material = defaultMaterial;
+
+    const leftWall = BoxBuilder.CreateBox(
+      'leftWall',
+      { size: 20,height: 0.2 },
+      scene
+    )
+    leftWall.rotation.z = Math.PI/2;
+    leftWall.position.y = 10;
+    leftWall.position.x = -30;
+    leftWall.material = defaultMaterial;
+
+    const rightWall = BoxBuilder.CreateBox(
+      'rightWall',
+      { size: 20,height: 0.2 },
+      scene
+    )
+    rightWall.rotation.z = Math.PI/2;
+    rightWall.position.y = 10;
+    rightWall.position.x = 30;
+    rightWall.material = defaultMaterial;
+
+    const platform = BoxBuilder.CreateBox(
+      'ceiling',
+      { size: 20,height: 0.2 },
+      scene
+    )
+    
+    platform.position.y = 10;
+    platform.material = defaultMaterial;
+
+    //ceiling.rotation = new Vector3(Math.PI / 2, 0, 0);
+    land.material = defaultMaterial;
     
 
 
-    const sphere = SphereBuilder.CreateSphere(
+    /*const sphere = SphereBuilder.CreateSphere(
       'sphere',
       { diameter: 2, segments: 16 },
       scene
-    )
-    sphere.material = defaultMaterial
-    sphere.position.y = 2
-    sphere.position.z = -1
+    );
+    sphere.material = defaultMaterial;
+    sphere.position.y = 2;
+    sphere.position.z = -1;*/
 
-    /*const cube = BoxBuilder.CreateBox('cube', { size: 1, height: 3 }, scene)
-    cube.position = new Vector3(0, 5, 1)
-    cube.material = defaultMaterial*/
+    const sphere = BoxBuilder.CreateBox('sphere', { size: 2 }, scene)
+    sphere.position.y = 2;
+    sphere.position.z = -1;
+    sphere.material = defaultMaterial;
 
-    land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0.9,friction:0.01}, scene);
+    land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0.5,friction:0.01}, scene);
     sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.BoxImpostor,{mass:0.2}, scene);
+    //sphere.physicsImpostor.onCollideEvent = (e)=>{console.log(e)};
+    ceiling.physicsImpostor = new PhysicsImpostor(ceiling,PhysicsImpostor.BoxImpostor,{mass:0}, scene);
+    platform.physicsImpostor = new PhysicsImpostor(platform,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.5,friction:0.01}, scene);
+    leftWall.physicsImpostor = new PhysicsImpostor(leftWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
+    rightWall.physicsImpostor = new PhysicsImpostor(rightWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
+    let self = this;
+    sphere.physicsImpostor.registerOnPhysicsCollide([platform.physicsImpostor,land.physicsImpostor], function(main, collided) {
+      if(Math.abs(main.getLinearVelocity().y) < 3){
+        self.touching = true;
+      }
+      console.log(main.getLinearVelocity().y)
+    });
     //cube.physicsImpostor = new PhysicsImpostor(cube,PhysicsImpostor.BoxImpostor,{mass:.1, restitution: 0.9}, scene);
+    this.ceiling = ceiling;
     this.sphere = sphere;
     this.land = land;
   }
@@ -188,7 +269,7 @@ class Playground extends React.Component{
 
   // initialise scene rendering
   render(){
-    return <BabylonScene onSceneMount={this.onSceneMount} onKeyDown={this.onKeyDown} onKeyUp={this.onKeyUp}/>
+    return <BabylonScene onSceneMount={this.onSceneMount} onKeyDown={this.onKeyDown} onKeyUp={this.onKeyUp} onRender={this.resetPosAndAngle}/>
   }
 }
 

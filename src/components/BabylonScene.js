@@ -17,6 +17,7 @@ class BabylonScene extends React.Component {
     adaptToDeviceRatio: PropTypes.bool,
     onSceneMount: PropTypes.func.isRequired,
     onKeyDown: PropTypes.func.isRequired,
+    onRender: PropTypes.func.isRequired,
     onKeyUp: PropTypes.func.isRequired
   }
 
@@ -45,6 +46,7 @@ class BabylonScene extends React.Component {
     // start render loop
     this.engine.runRenderLoop(() => {
       if (this.scene) {
+        this.props.onRender();
         this.scene.render()
       }
     })
@@ -69,6 +71,7 @@ class BabylonScene extends React.Component {
       const preventDefault = e => e.preventDefault()
       this.canvas.onwheel = preventDefault
       this.canvas.onmousewheel = preventDefault
+      this.canvas.focus();
     }
   }
   onKeyDown = (e) => {
