@@ -28,6 +28,9 @@ class Playground extends React.Component{
     super(props);
     this.keyDirection = 0;
     this.touching = true;
+    this.levelHeight = 40;
+    this.levelWidth = 60;
+    this.levelDepth = 4;
   }
 
   onSpacePressed = () =>{
@@ -73,6 +76,23 @@ class Playground extends React.Component{
           self.accelerate.apply(self);
         },200);
       }
+    }else if(e.key === "AltGraph"){
+      if(this.sphere.getChildren().includes(this.egg)){
+        console.log("AltGraph");
+        this.egg.parent = null;
+        this.egg.position = this.sphere.getAbsolutePosition();
+        this.egg.position.x += 5*this.keyDirection;
+        //this.egg.physicsImpostor = new PhysicsImpostor(this.egg,PhysicsImpostor.BoxImpostor,{mass:1, restitution: 0.5,friction:0.01}, this.scene);
+        this.setEggImpostor();
+        this.egg.position.z = 0;
+        let vel = this.egg.physicsImpostor.getLinearVelocity();
+        vel.z = 0;
+        this.egg.physicsImpostor.setLinearVelocity(vel);
+        this.egg.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
+        this.egg.rotation = new Vector3(0,0,0);
+        this.egg.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*20, 0, 0), this.egg.getAbsolutePosition());
+
+      }
     }
   }
   onKeyUp = (e) => {
@@ -110,6 +130,7 @@ class Playground extends React.Component{
   onSceneMount = ({ canvas, scene, engine }) => {
     //console.log('Babylon scene mounted')
     window.scene = scene // for debug
+    this.scene = scene;
     var gravityVector = new Vector3(0,-9.81, 0);
     var physicsPlugin = new CannonJSPlugin();
     
@@ -119,14 +140,16 @@ class Playground extends React.Component{
       'arc-camera',
       -Math.PI/2,
       Math.PI/2,
-      50,
-      new Vector3(0,10,0),
+      60,
+      new Vector3(0,0,0),
       scene
     )
+    camera.fov = 0.6;
     //camera.setTarget(Vector3.Zero())
     
     //camera.attachControl(canvas, true)
     camera.keysUp = [];camera.keysDown = [];
+    this.camera = camera;
     // sky (https://doc.babylonjs.com/extensions/sky)
     const skyMaterial = new SkyMaterial('sky-material', scene)
     skyMaterial.backFaceCulling = false
@@ -136,15 +159,15 @@ class Playground extends React.Component{
     const skybox = BoxBuilder.CreateBox('skybox', { size: 1000 }, scene)
     skybox.material = skyMaterial
     // create light
-    const light = new PointLight('light', new Vector3(2, 9, -10), scene)
-    const light2 = new PointLight('light', new Vector3(-5, 11, -10), scene)
+    const light = new PointLight('light', new Vector3(20, 9, -20), scene)
+    const light2 = new PointLight('light', new Vector3(-50, 32, -20), scene)
     /*const lightDistance = 2
     light.position = new Vector3(
       lightDistance,
       2 * lightDistance,
       lightDistance
     )*/
-    light.intensity = 1
+    light.intensity = .7
     light2.intensity = 0.3
     // scene
     this.createStaticMesh({ scene })
@@ -159,42 +182,62 @@ class Playground extends React.Component{
     defaultMaterial.diffuseColor = new Color3(1, 1, 1)
     const land = GroundBuilder.CreateGround(
       'land',
-      { width: 100,height: 100, sideOrientation: Mesh.DOUBLESIDE },
+      { width: this.levelWidth,height: this.levelDepth, sideOrientation: Mesh.DOUBLESIDE },
       scene
     )
 
     const ceiling = BoxBuilder.CreateBox(
       'ceiling',
-      { size: 100,height: 0.2 },
+      { width: this.levelWidth,depth: this.levelDepth,height: 0.2 },
       scene
     )
     
-    ceiling.position.y = 20;
+    ceiling.position.y = 40;
     ceiling.material = defaultMaterial;
 
     const leftWall = BoxBuilder.CreateBox(
       'leftWall',
-      { size: 20,height: 0.2 },
+      { width: this.levelHeight,depth: this.levelDepth,height: 0.2 },
       scene
     )
     leftWall.rotation.z = Math.PI/2;
-    leftWall.position.y = 10;
-    leftWall.position.x = -30;
+    leftWall.position.y = 20;
+    leftWall.position.x = -this.levelWidth/2;
     leftWall.material = defaultMaterial;
+
+    const backWall = PlaneBuilder.CreatePlane(
+      'backWall',
+      { height: this.levelWidth,width: this.levelHeight, sideOrientation: Mesh.DOUBLESIDE},
+      scene
+    )
+    backWall.rotation.z= Math.PI/2;
+    //backWall.position.z = 10;
+    backWall.position.y = this.levelHeight/2;
+    backWall.material = defaultMaterial;
+
+    const frontWall = PlaneBuilder.CreatePlane(
+      'frontWall',
+      { height: this.levelWidth,width: this.levelHeight,sideOrientation: Mesh.BACKSIDE},
+      scene
+    )
+    frontWall.rotation.z= Math.PI/2;
+    frontWall.position.z = -this.levelDepth;
+    frontWall.position.y = this.levelHeight/2;
+    //frontWall.material = defaultMaterial;
 
     const rightWall = BoxBuilder.CreateBox(
       'rightWall',
-      { size: 20,height: 0.2 },
+      { width: this.levelHeight,depth: this.levelDepth,height: 0.2 },
       scene
     )
     rightWall.rotation.z = Math.PI/2;
-    rightWall.position.y = 10;
-    rightWall.position.x = 30;
+    rightWall.position.y = 20;
+    rightWall.position.x = this.levelWidth/2;
     rightWall.material = defaultMaterial;
 
     const platform = BoxBuilder.CreateBox(
       'ceiling',
-      { size: 20,height: 0.2 },
+      { width: 20,depth: this.levelDepth,height: 0.2 },
       scene
     )
     
@@ -203,8 +246,16 @@ class Playground extends React.Component{
 
     //ceiling.rotation = new Vector3(Math.PI / 2, 0, 0);
     land.material = defaultMaterial;
-    
 
+    const egg = SphereBuilder.CreateSphere(
+      'egg',
+      { diameter: 1.5, segments: 16 },
+      scene
+    );
+    egg.material = defaultMaterial;
+    egg.position.y = 12;
+    egg.position.z = -this.levelDepth/2;
+    this.egg = egg;
 
     /*const sphere = SphereBuilder.CreateSphere(
       'sphere',
@@ -217,28 +268,44 @@ class Playground extends React.Component{
 
     const sphere = BoxBuilder.CreateBox('sphere', { size: 2 }, scene)
     sphere.position.y = 2;
-    sphere.position.z = -1;
+    sphere.position.z = -this.levelDepth/2;
     sphere.material = defaultMaterial;
+    this.camera.parent = sphere;
 
-    land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0.5,friction:0.01}, scene);
-    sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.BoxImpostor,{mass:0.2}, scene);
+    land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.BoxImpostor,{mass:0.2,restitution: 0.1}, scene);
     //sphere.physicsImpostor.onCollideEvent = (e)=>{console.log(e)};
     ceiling.physicsImpostor = new PhysicsImpostor(ceiling,PhysicsImpostor.BoxImpostor,{mass:0}, scene);
-    platform.physicsImpostor = new PhysicsImpostor(platform,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.5,friction:0.01}, scene);
+    platform.physicsImpostor = new PhysicsImpostor(platform,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    backWall.physicsImpostor = new PhysicsImpostor(backWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    frontWall.physicsImpostor = new PhysicsImpostor(frontWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    //egg.physicsImpostor = new PhysicsImpostor(egg,PhysicsImpostor.BoxImpostor,{mass:1, restitution: 0.5,friction:0.01}, scene);
     leftWall.physicsImpostor = new PhysicsImpostor(leftWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
     rightWall.physicsImpostor = new PhysicsImpostor(rightWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
     let self = this;
-    sphere.physicsImpostor.registerOnPhysicsCollide([platform.physicsImpostor,land.physicsImpostor], function(main, collided) {
-      if(Math.abs(main.getLinearVelocity().y) < 3){
-        self.touching = true;
-      }
-      console.log(main.getLinearVelocity().y)
-    });
+    sphere.physicsImpostor.registerOnPhysicsCollide([platform.physicsImpostor,land.physicsImpostor], this.onSphereHitGround);
+
     //cube.physicsImpostor = new PhysicsImpostor(cube,PhysicsImpostor.BoxImpostor,{mass:.1, restitution: 0.9}, scene);
     this.ceiling = ceiling;
     this.sphere = sphere;
     this.land = land;
+    this.setEggImpostor();
   }
+  setEggImpostor(){
+    this.egg.physicsImpostor = new PhysicsImpostor(this.egg,PhysicsImpostor.SphereImpostor,{mass:1, restitution: 0.2,friction:0.3}, this.scene);
+    this.sphere.physicsImpostor.registerOnPhysicsCollide(this.egg.physicsImpostor, this.onSphereHitEgg);
+  }
+  onSphereHitEgg = (main, collided) => {
+    this.egg.physicsImpostor.dispose();
+    this.egg.parent = this.sphere;
+    this.egg.position = new Vector3((2+1.5)/2,0,0);
+  }
+  onSphereHitGround = (main, collided) => {
+    if(Math.abs(this.sphere.physicsImpostor.getLinearVelocity().y) < 4){
+      this.touching = true;
+    }
+  }
+
 
   showWorldAxis = ({ size, scene }) => {
     const axisX = LinesBuilder.CreateLines(
