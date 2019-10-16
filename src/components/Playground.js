@@ -2,7 +2,7 @@ import React from 'react'
 //import * as cannon from 'cannon';
 import { CannonJSPlugin } from '@babylonjs/core/Physics/Plugins/cannonJSPlugin'
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor'
-import { Vector3, Color3 } from '@babylonjs/core/Maths/math'
+import { Vector3, Color3,Vector4 } from '@babylonjs/core/Maths/math'
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera'
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight'
 import { PointLight } from '@babylonjs/core/Lights/pointLight'
@@ -114,22 +114,18 @@ class Playground extends React.Component{
   createLights(scene){
     const light = new PointLight('light', new Vector3(this.levelWidth*3/4, 9, -200), scene)
     const light2 = new PointLight('light', new Vector3(-this.levelWidth*3/4, 32, -200), scene)
-    /*const lightDistance = 2
-    light.position = new Vector3(
-      lightDistance,
-      2 * lightDistance,
-      lightDistance
-    )*/
     light.intensity = .7
     light2.intensity = 0.3
   }
 
   createStaticMesh = ({ scene }) => {
+    this.concreteMaterial = this.createConcreteMaterial(scene);
+    this.pbr = this.createBricksMaterial(scene);
     this.land = this.createGround(scene);
+    this.createFloor(scene);
     this.ceiling = this.createCeiling(scene);
     this.createLeftWall(scene);
     this.createRightWall(scene);
-    this.createBricksTexture(scene);
     this.createBackWall(scene);
     this.createFrontWall(scene);
     this.platform = this.createPlatform(scene);    
@@ -139,17 +135,28 @@ class Playground extends React.Component{
   }
 
   createGround(scene){
-    const defaultMaterial = new StandardMaterial('default-material', scene)
-    defaultMaterial.diffuseColor = new Color3(1, 1, 1)
     const land = GroundBuilder.CreateGround(
       'land',
       { width: this.levelWidth,height: this.levelDepth, sideOrientation: Mesh.DOUBLESIDE },
       scene
-    )
-    land.material = defaultMaterial;
+    );
+    //land.material = defaultMaterial;
     land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0,stiffness:0,friction:1}, scene);
-    land.receiveShadows = true;
+    land.visibility = 0;
     return land;
+  }
+
+  createFloor(scene){
+    const faceUV = this.getBoxWrapUV(this.levelWidth,2,this.levelDepth,5);
+    const floor = BoxBuilder.CreateBox(
+      'land',
+      { width: this.levelWidth,height: 2, sideOrientation: Mesh.DOUBLESIDE ,depth:this.levelDepth,faceUV:faceUV},
+      scene
+    )
+    //floor.rotation.x = Math.PI/2;
+    floor.position.y = -1;
+    floor.material = this.concreteMaterial;
+    floor.receiveShadows = true;
   }
 
   createCeiling(scene){
@@ -199,22 +206,18 @@ class Playground extends React.Component{
     rightWall.receiveShadows = true;
   }
 
-  createBricksTexture(scene){
-    const pbr = new PBRMaterial('default-material', scene)
-    //pbr.albedoColor = new Color3(0.7, .7, 0.7);
-    /*pbr.metallic = 0;
-    pbr.roughness = .7;*/
+  createBricksMaterial(scene){
+    const pbr = new PBRMaterial('bricks', scene);
     pbr.forceIrradianceInFragment = true;
     pbr.albedoTexture = new Texture("textures/bricks_rustic_albedo.png", scene);
     pbr.bumpTexture = new Texture("textures/bricks_rustic_normal.png", scene);
     pbr.useRoughnessFromMetallicTextureAlpha = false;
     pbr.useRoughnessFromMetallicTextureGreen = true;
     pbr.useMetallnessFromMetallicTextureBlue = true;
-    pbr.metallicTexture = new Texture("textures/bricks_rustic_roughness.png", scene);
-    
+    pbr.metallicTexture = new Texture("textures/bricks_rustic_metallic_roughness.png", scene);
     pbr.invertNormalMapX = true;
     pbr.invertNormalMapY = true;
-    this.pbr = pbr;
+    return pbr;
   }
 
   createBackWall(scene){
@@ -236,7 +239,6 @@ class Playground extends React.Component{
                 backWall.parent = tmpBackWall;
                 backWall.position = new Vector3(x,y,0);
               }else{
-                //let newWall = backWall.clone("wallTile"+x+"_"+y,tmpBackWall,true,false);
                 let newWall = backWall.createInstance("wallTile"+x+"_"+y);
                 newWall.parent = tmpBackWall;
                 newWall.position = new Vector3(x,y,0);
@@ -266,17 +268,55 @@ class Playground extends React.Component{
     frontWall.physicsImpostor = new PhysicsImpostor(frontWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
   }
 
+  createConcreteMaterial(scene){
+    const pbr = new PBRMaterial('concrete', scene)
+    pbr.forceIrradianceInFragment = true;
+    pbr.albedoTexture = new Texture("textures/concrete_worn_albedo.png", scene);
+    pbr.bumpTexture = new Texture("textures/concrete_worn_normal.png", scene);
+    pbr.useRoughnessFromMetallicTextureAlpha = false;
+    pbr.useRoughnessFromMetallicTextureGreen = true;
+    pbr.useMetallnessFromMetallicTextureBlue = true;
+    pbr.metallicTexture = new Texture("textures/concrete_worn_metallic_roughness.png", scene);
+    pbr.invertNormalMapX = true;
+    pbr.invertNormalMapY = true;
+    return pbr;
+  }
+
+  getBoxWrapUV(width,height,depth,textureSize){
+    /*
+    side 0 faces the positive z direction
+    side 1 faces the negative z direction
+    side 2 faces the positive x direction
+    side 3 faces the negative x direction
+    side 4 faces the positive y direction
+    side 5 faces the negative y direction
+    */
+    var faceUV = new Array(6);
+
+    for (var i = 0; i < 6; i++) {
+      if(i === 0 || i === 1){
+        faceUV[i] = new Vector4(0, 0,width/textureSize,height/textureSize);
+      }else if(i === 2 || i === 3){
+        faceUV[i] = new Vector4(0, 0,height/textureSize,depth/textureSize);
+      }else if(i === 4 || i === 5){
+        faceUV[i] = new Vector4(0, 0,depth/textureSize,width/textureSize);
+      }
+    }
+    return faceUV;
+  }
+
   createPlatform(scene){
-    const defaultMaterial = new StandardMaterial('default-material', scene)
-    defaultMaterial.diffuseColor = new Color3(1, 1, 1)
+    const width = 20;
+    const height = 2;
+    const faceUV = this.getBoxWrapUV(width,height,this.levelDepth,5);
     const platform = BoxBuilder.CreateBox(
       'ceiling',
-      { width: 20,depth: this.levelDepth,height: 0.2 },
+      { width: width,depth: this.levelDepth,height: height ,faceUV:faceUV},
       scene
     )
     
     platform.position.y = 10;
-    platform.material = defaultMaterial;
+    platform.material = this.concreteMaterial;
     platform.physicsImpostor = new PhysicsImpostor(platform,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
     this.sg.getShadowMap().renderList.push(platform);
     platform.receiveShadows = true;
@@ -292,7 +332,7 @@ class Playground extends React.Component{
       scene
     );
     egg.material = defaultMaterial;
-    egg.position.y = 12;
+    egg.position.y = 15;
     //egg.position.z = -this.levelDepth/2;
     this.sg.getShadowMap().renderList.push(egg);
     return egg;
@@ -305,7 +345,6 @@ class Playground extends React.Component{
     defaultMaterial.roughness = .3;
     const sphere = SphereBuilder.CreateSphere('sphere', { diameter: 2 }, scene)
     sphere.position.y = 2;
-    //sphere.position.z = -this.levelDepth/2;
     sphere.material = defaultMaterial;
     if(ATTACH_CAMERA){
       this.camera.parent = sphere;
@@ -382,7 +421,6 @@ class Playground extends React.Component{
         this.egg.parent = null;
         this.egg.position = this.sphere.getAbsolutePosition();
         this.egg.position.x += 5*this.keyDirection;
-        //this.egg.physicsImpostor = new PhysicsImpostor(this.egg,PhysicsImpostor.BoxImpostor,{mass:1, restitution: 0.5,friction:0.01}, this.scene);
         this.setEggImpostor();
         this.egg.position.z = 0;
         let vel = this.egg.physicsImpostor.getLinearVelocity();
