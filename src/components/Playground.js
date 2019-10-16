@@ -32,7 +32,7 @@ import '@babylonjs/core/Physics/physicsEngineComponent'
 import BabylonScene from './BabylonScene'
 
 const SHOW_WORLD_AXIS = false;
-const ATTACH_CAMERA = false;
+const ATTACH_CAMERA = true;
 
 class Playground extends React.Component{
   constructor(props){
@@ -59,7 +59,7 @@ class Playground extends React.Component{
     // create light
     //this.createLights(scene);
     this.createDirectionalLight(scene);
-    //this.createHemisphericLight(scene);
+    this.createHemisphericLight(scene);
     // scene
     this.createStaticMesh({ scene })
     // debug
@@ -107,8 +107,8 @@ class Playground extends React.Component{
   }
 
   createHemisphericLight(scene){
-    const hemi = new HemisphericLight("hemi",new Vector3(1,-3,1),scene);
-    hemi.intensity = 0.1;
+    const hemi = new HemisphericLight("hemi",new Vector3(1,2,1),scene);
+    hemi.intensity = 0.3;
   }
 
   createLights(scene){
@@ -129,6 +129,7 @@ class Playground extends React.Component{
     this.ceiling = this.createCeiling(scene);
     this.createLeftWall(scene);
     this.createRightWall(scene);
+    this.createBricksTexture(scene);
     this.createBackWall(scene);
     this.createFrontWall(scene);
     this.platform = this.createPlatform(scene);    
@@ -198,55 +199,80 @@ class Playground extends React.Component{
     rightWall.receiveShadows = true;
   }
 
+  createBricksTexture(scene){
+    const pbr = new PBRMaterial('default-material', scene)
+    //pbr.albedoColor = new Color3(0.7, .7, 0.7);
+    pbr.metallic = 0;
+    pbr.roughness = .7;
+    //pbr.forceIrradianceInFragment = true;
+    pbr.albedoTexture = new Texture("textures/bricks_rustic_albedo.png", scene);
+    pbr.bumpTexture = new Texture("textures/bricks_rustic_normal.png", scene);
+    pbr.useRoughnessFromMetallicTextureAlpha = false;
+    pbr.useRoughnessFromMetallicTextureGreen = true;
+    pbr.useMetallnessFromMetallicTextureBlue = true;
+    pbr.metallicTexture = new Texture("textures/bricks_rustic_roughness.png", scene);
+    
+    //pbr.invertNormalMapX = true;
+    pbr.invertNormalMapY = true;
+    this.pbr = pbr;
+  }
+
   createBackWall(scene){
     let wallWidth = 20;
     let wallHeight = 20;
-    const pbr = new PBRMaterial('default-material', scene)
-    //pbr.albedoColor = new Color3(0.1, 1, 0.4);
-    //pbr.metallic = 0;
-    //pbr.roughness = .3;
-    //pbr.forceIrradianceInFragment = true;
-    pbr.albedoTexture = new Texture("textures/bricks_albedo.png", scene);
-    pbr.bumpTexture = new Texture("textures/bricks_normal.png", scene);
-    pbr.useAmbientOcclusionFromMetallicTextureRed = true;
-    pbr.useRoughnessFromMetallicTextureGreen = true;
-    pbr.metallicTexture = new Texture("textures/bricks_roughness.png", scene);
+    
+    //pbr.useAmbientOcclusionFromMetallicTextureRed = true;
+    //pbr.useRoughnessFromMetallicTextureGreen = true;
+    //pbr.metallicTexture = new Texture("textures/bricks_rustic_roughness.png", scene);
     
     //pbr.bumpTexture.uScale = 10;
     //pbr.bumpTexture.vScale = -4;
     const backWall = GroundBuilder.CreateGroundFromHeightMap(
-      'backWall','textures/bricks_hm.png',
-      { height:  wallHeight,width:wallWidth,subdivisions:200,maxHeight:0.2},
+      'backWall','textures/bricks_rustic_height.png',
+      { height:  wallHeight,width:wallWidth,
+        subdivisions:200,maxHeight:0.2,
+        onReady:(backWall)=>{
+          backWall.rotation.x= -Math.PI/2;
+    
+          backWall.material = this.pbr;
+          backWall.receiveShadows = true;
+          let tmpBackWall = new Mesh("tmpBackWall",scene);
+          for(let x = 0;x<this.levelWidth;x += wallWidth){
+            for(let y = 0;y<this.levelHeight;y += wallHeight){
+              if(x === 0 && y === 0){
+                backWall.parent = tmpBackWall;
+                backWall.position = new Vector3(x,y,0);
+              }else{
+                //let newWall = backWall.clone("wallTile"+x+"_"+y,tmpBackWall,true,false);
+                let newWall = backWall.createInstance("wallTile"+x+"_"+y);
+                newWall.parent = tmpBackWall;
+                newWall.position = new Vector3(x,y,0);
+              }
+            }
+          }
+          tmpBackWall.position.z = this.levelDepth/2;
+          tmpBackWall.position.y = this.levelHeight/2 - wallHeight/2;
+          tmpBackWall.position.x= -this.levelWidth/2;
+          tmpBackWall.physicsImpostor = new PhysicsImpostor(tmpBackWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+        }
+      },
       scene
     )
     //backWall.rotation.z= Math.PI;
     //backWall.rotation.i= Math.PI;
-    backWall.rotation.x= -Math.PI/2;
     
-    backWall.material = pbr;
-    backWall.receiveShadows = true;
     
 
-    //let completeBackWall = new Mesh("completeBackWall",scene);
-    //completeBackWall.addChild(backWall);
-    let clones = [];
-    for(let x = 0;x<this.levelWidth;x += wallWidth){
-      for(let y = 0;y<this.levelHeight;y += wallHeight){
-        if(x === 0 && y === 0){
-          continue;
-        }
-        let newWall = backWall.createInstance("wallTile"+x+"_"+y);
-        newWall.position = new Vector3(x,y,0);
-        clones.push(newWall);
-      }
-    }
-    let completeBackWall = Mesh.MergeMeshes(clones,true,true,undefined,false,true);
-    console.log(completeBackWall);
-    completeBackWall.position.z = this.levelDepth/2;
-    completeBackWall.position.y = this.levelHeight/2 - wallHeight/2;
-    completeBackWall.position.x= -this.levelWidth/2;
     
-    completeBackWall.physicsImpostor = new PhysicsImpostor(completeBackWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    //completeBackWall.addChild(backWall);
+    
+    //let completeBackWall = Mesh.MergeMeshes(clones,true,false,undefined,false,false);
+    //console.log(completeBackWall);
+    //tmpBackWall.position.z = this.levelDepth/2;
+    //tmpBackWall.position.y = this.levelHeight/2 - wallHeight/2;
+    //tmpBackWall.position.x= -this.levelWidth/2;
+    
+    //tmpBackWall.physicsImpostor = new PhysicsImpostor(tmpBackWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
     
   }
 
