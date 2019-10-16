@@ -202,9 +202,9 @@ class Playground extends React.Component{
   createBricksTexture(scene){
     const pbr = new PBRMaterial('default-material', scene)
     //pbr.albedoColor = new Color3(0.7, .7, 0.7);
-    pbr.metallic = 0;
-    pbr.roughness = .7;
-    //pbr.forceIrradianceInFragment = true;
+    /*pbr.metallic = 0;
+    pbr.roughness = .7;*/
+    pbr.forceIrradianceInFragment = true;
     pbr.albedoTexture = new Texture("textures/bricks_rustic_albedo.png", scene);
     pbr.bumpTexture = new Texture("textures/bricks_rustic_normal.png", scene);
     pbr.useRoughnessFromMetallicTextureAlpha = false;
@@ -212,7 +212,7 @@ class Playground extends React.Component{
     pbr.useMetallnessFromMetallicTextureBlue = true;
     pbr.metallicTexture = new Texture("textures/bricks_rustic_roughness.png", scene);
     
-    //pbr.invertNormalMapX = true;
+    pbr.invertNormalMapX = true;
     pbr.invertNormalMapY = true;
     this.pbr = pbr;
   }
@@ -220,13 +220,6 @@ class Playground extends React.Component{
   createBackWall(scene){
     let wallWidth = 20;
     let wallHeight = 20;
-    
-    //pbr.useAmbientOcclusionFromMetallicTextureRed = true;
-    //pbr.useRoughnessFromMetallicTextureGreen = true;
-    //pbr.metallicTexture = new Texture("textures/bricks_rustic_roughness.png", scene);
-    
-    //pbr.bumpTexture.uScale = 10;
-    //pbr.bumpTexture.vScale = -4;
     const backWall = GroundBuilder.CreateGroundFromHeightMap(
       'backWall','textures/bricks_rustic_height.png',
       { height:  wallHeight,width:wallWidth,
@@ -257,22 +250,7 @@ class Playground extends React.Component{
         }
       },
       scene
-    )
-    //backWall.rotation.z= Math.PI;
-    //backWall.rotation.i= Math.PI;
-    
-    
-
-    
-    //completeBackWall.addChild(backWall);
-    
-    //let completeBackWall = Mesh.MergeMeshes(clones,true,false,undefined,false,false);
-    //console.log(completeBackWall);
-    //tmpBackWall.position.z = this.levelDepth/2;
-    //tmpBackWall.position.y = this.levelHeight/2 - wallHeight/2;
-    //tmpBackWall.position.x= -this.levelWidth/2;
-    
-    //tmpBackWall.physicsImpostor = new PhysicsImpostor(tmpBackWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    );
     
   }
 
