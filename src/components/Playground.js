@@ -2,17 +2,19 @@ import React from 'react'
 //import * as cannon from 'cannon';
 import { CannonJSPlugin } from '@babylonjs/core/Physics/Plugins/cannonJSPlugin'
 import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor'
-import { Vector3, Color3,Vector4 } from '@babylonjs/core/Maths/math'
+import { Vector3, Color3,Vector4,Quaternion } from '@babylonjs/core/Maths/math'
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera'
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight'
 import { PointLight } from '@babylonjs/core/Lights/pointLight'
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight'
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator'
 import { ShadowGeneratorSceneComponent } from '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent'
+import {SceneLoader} from '@babylonjs/core/Loading/';
 
 
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial'
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial'
+import { PBRMetallicRoughnessMaterial } from '@babylonjs/core/Materials/PBR/pbrMetallicRoughnessMaterial'
 import { Texture } from '@babylonjs/core/Materials/Textures/texture'
 
 import { LinesBuilder } from '@babylonjs/core/Meshes/Builders/linesBuilder'
@@ -130,8 +132,8 @@ class Playground extends React.Component{
     this.createFrontWall(scene);
     this.platform = this.createPlatform(scene);    
     this.egg = this.createEgg(scene);
-    this.sphere = this.createSphere(scene);
-    this.setEggImpostor();
+    this.player = this.createSphere(scene);
+    //this.setEggImpostor();
   }
 
   createGround(scene){
@@ -339,34 +341,53 @@ class Playground extends React.Component{
   }
 
   createSphere(scene){
-    const defaultMaterial = new PBRMaterial('default-material', scene)
-    defaultMaterial.albedoColor = new Color3(1, 0, 0);
-    defaultMaterial.metallic = .9;
-    defaultMaterial.roughness = .3;
-    const sphere = SphereBuilder.CreateSphere('sphere', { diameter: 2 }, scene)
-    sphere.position.y = 2;
-    sphere.material = defaultMaterial;
-    if(ATTACH_CAMERA){
-      this.camera.parent = sphere;
-    }
-    sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.SphereImpostor,{mass:0.2,restitution: 0,friction:1,stiffness:0}, scene);
-    sphere.physicsImpostor.registerOnPhysicsCollide([this.platform.physicsImpostor,this.land.physicsImpostor], this.onSphereHitGround);
-    this.sg.getShadowMap().renderList.push(sphere);
+    const player = BoxBuilder.CreateBox("sphere",{width:4,height:6.1,depth:2},scene);
+    player.visibility = 0;
+    const loader = SceneLoader.ImportMesh('walking','models/','walking.babylon',scene,(meshes)=>{
+      console.log('loaded')
+      const model = meshes[0];
+      model.receiveShadows = true;
+      model.rotation = new Vector3(-Math.PI / 2,Math.PI,0);
+      model.scaling = new Vector3(.07,.07,.07);
+      model.position.y = 0.3;
+      /*const axis = new Vector3(0, 0, 0);
+      //axis = axis.normalize();
+      const angle = Math.PI / 8;
+      const quaternion = Quaternion.RotationAxis(axis, angle);
+      model.rotationQuaternion = quaternion;*/
 
-    return sphere;
+      player.addChild(model);
+      //this.camera.parent = null;
+      /*this.sphere.physicsImpostor.dispose();
+      this.sphere.dispose();*/
+      //model.parent = this.sphere;
+      player.position.y = 3;
+      player.physicsImpostor = new PhysicsImpostor(player,PhysicsImpostor.SphereImpostor,{mass:0.2,restitution: 0,friction:1,stiffness:0}, scene);
+      player.physicsImpostor.registerOnPhysicsCollide([this.platform.physicsImpostor,this.land.physicsImpostor], this.onSphereHitGround);
+      this.sg.getShadowMap().renderList.push(model);
+      this.setEggImpostor();
+    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));    
+
+      if(ATTACH_CAMERA){
+        this.camera.parent = player;
+      }
+
+      //sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.SphereImpostor,{mass:0.2,restitution: 0,friction:1,stiffness:0}, scene);
+      
+    return player;
   }
 
   setEggImpostor(scene){
     this.egg.physicsImpostor = new PhysicsImpostor(this.egg,PhysicsImpostor.SphereImpostor,{mass:1, restitution: 0.2,friction:0.3}, this.scene);
-    this.sphere.physicsImpostor.registerOnPhysicsCollide(this.egg.physicsImpostor, this.onSphereHitEgg);
+    this.player.physicsImpostor.registerOnPhysicsCollide(this.egg.physicsImpostor, this.onSphereHitEgg);
   }
   onSphereHitEgg = (main, collided) => {
     this.egg.physicsImpostor.dispose();
-    this.egg.parent = this.sphere;
+    this.egg.parent = this.player;
     this.egg.position = new Vector3((2+1.5)/2,0,0);
   }
   onSphereHitGround = (main, collided) => {
-    if(Math.abs(this.sphere.physicsImpostor.getLinearVelocity().y) < 4){
+    if(Math.abs(this.player.physicsImpostor.getLinearVelocity().y) < 4){
       this.touching = true;
     }
   }
@@ -375,16 +396,16 @@ class Playground extends React.Component{
     //let horizImpulse = this.isNotSpeeding() ?this.keyDirection/2:0;
     let boost = this.getBoost();
     console.log("spacebar boost"+boost);
-    this.sphere.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.7*boost, 1, 0), this.sphere.getAbsolutePosition())
+    this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.7*boost, 1, 0), this.player.getAbsolutePosition())
     this.resetPosAndAngle();
     this.touching = false;
   }
   getBoost(){
-    let vel = this.sphere.physicsImpostor.getLinearVelocity().x;
+    let vel = this.player.physicsImpostor.getLinearVelocity().x;
     return vel/Math.abs(vel) === this.keyDirection ? 1 : 2;
   }
   isNotSpeeding(){
-    return this.sphere.physicsImpostor.getLinearVelocity().x*this.keyDirection < 7;
+    return this.player.physicsImpostor.getLinearVelocity().x*this.keyDirection < 7;
   }
   isTouchingGround(){
     return this.touching;
@@ -395,7 +416,7 @@ class Playground extends React.Component{
       this.onSpacePressed();
     }else if(e.key === "ArrowRight"){
       this.keyDirection = 1;
-      this.sphere.physicsImpostor.friction = 0.1;
+      this.player.physicsImpostor.friction = 0.1;
       this.land.physicsImpostor.friction = 0.1;
       if(!this.accelerateInterval){
         let self = this;
@@ -406,7 +427,7 @@ class Playground extends React.Component{
       }
     }else if(e.key === "ArrowLeft"){
       this.keyDirection = -1;
-      this.sphere.physicsImpostor.friction = 0.1;
+      this.player.physicsImpostor.friction = 0.1;
       this.land.physicsImpostor.friction = 0.1;
       if(!this.accelerateInterval){
         let self = this;
@@ -416,10 +437,10 @@ class Playground extends React.Component{
         },200);
       }
     }else if(e.key === "AltGraph"){
-      if(this.sphere.getChildren().includes(this.egg)){
+      if(this.player.getChildren().includes(this.egg)){
         console.log("AltGraph");
         this.egg.parent = null;
-        this.egg.position = this.sphere.getAbsolutePosition();
+        this.egg.position = this.player.getAbsolutePosition();
         this.egg.position.x += 5*this.keyDirection;
         this.setEggImpostor();
         this.egg.position.z = 0;
@@ -442,17 +463,20 @@ class Playground extends React.Component{
         clearInterval(this.accelerateInterval);
         this.accelerateInterval = null;
       }
-      this.sphere.physicsImpostor.friction = 1;
+      this.player.physicsImpostor.friction = 1;
       this.land.physicsImpostor.friction = 1;
     }
   }
   resetPosAndAngle = () => {
-    let vel = this.sphere.physicsImpostor.getLinearVelocity();
+    if(!this.player || !this.player.physicsImpostor){
+      return;
+    }
+    let vel = this.player.physicsImpostor.getLinearVelocity();
     vel.z = 0;
-    this.sphere.physicsImpostor.setLinearVelocity(vel);
-    this.sphere.position.z = 0;
-    this.sphere.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
-    this.sphere.rotation = new Vector3(0,0,0);
+    this.player.physicsImpostor.setLinearVelocity(vel);
+    this.player.position.z = 0;
+    this.player.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
+    this.player.rotation = new Vector3(0,0,0);
   }
   accelerate(){
     this.resetPosAndAngle();
@@ -460,7 +484,7 @@ class Playground extends React.Component{
         this.isNotSpeeding() &&
         this.isTouchingGround() ){
       let boost = this.getBoost();
-      this.sphere.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*1*boost, 0, 0), this.sphere.getAbsolutePosition());
+      this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*1*boost, 0, 0), this.player.getAbsolutePosition());
     }
   }
 
