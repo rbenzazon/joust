@@ -121,6 +121,7 @@ class Playground extends React.Component{
   }
 
   createStaticMesh = ({ scene }) => {
+    this.loadModels(scene);
     this.concreteMaterial = this.createConcreteMaterial(scene);
     this.pbr = this.createBricksMaterial(scene);
     this.land = this.createGround(scene);
@@ -340,22 +341,77 @@ class Playground extends React.Component{
     return egg;
   }
 
+  rotatePlayer(direction,lastQuaternion){
+    console.log(direction);
+    if(direction === 0) {
+      this.model.rotationQuaternion = lastQuaternion;
+    }else{
+      const axis = new Vector3(0, 1, 0);
+      const angle = direction * (Math.PI / 2) - (Math.PI / 2);
+      const quaternion = Quaternion.RotationAxis(axis, angle);
+      this.model.rotationQuaternion = quaternion;
+    }
+  }
+
+  loadModels(scene){
+    this.assetsNum = 4;
+    SceneLoader.ImportMesh('walking_left','models/','walking_left.babylon',scene,(meshes)=>{
+      this.walkingLeft = meshes[0];
+      this.checkAssets(this.walkingLeft);
+    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+
+    SceneLoader.ImportMesh('flying','models/','flying.babylon',scene,(meshes)=>{
+      this.flying = meshes[0];
+      this.checkAssets(this.flying);
+    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+
+    SceneLoader.ImportMesh('running','models/','running.babylon',scene,(meshes)=>{
+      this.running = meshes[0];
+      this.checkAssets(this.running);
+    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+
+    SceneLoader.ImportMesh('flapping','models/','flapping.babylon',scene,(meshes)=>{
+      this.flapping = meshes[0];
+      this.checkAssets(this.flapping);
+    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+        
+  }
+  checkAssets(model){
+    model.visibility = 0;
+    model.position.x = 5 * this.assetsNum;
+    model.position.y = 3.3;
+    this.sg.getShadowMap().renderList.push(model);
+    this.assetsNum--;
+    if(this.assetsNum === 0){
+      console.log("checkAssets finish");
+    }
+  }
+  changeModel(model){
+    if(model === this.model){
+      return;
+    }
+    this.model.parent = null;
+    this.model.visibility = 0;
+    model.visibility = 1;
+    const lastQuaternion = this.model.rotationQuaternion;
+    this.model = model;
+    this.player.addChild(model);
+    model.position = new Vector3(0,0.3,0);
+    this.rotatePlayer(this.keyDirection,lastQuaternion);
+  }
   createSphere(scene){
     const player = BoxBuilder.CreateBox("sphere",{width:4,height:6.1,depth:2},scene);
     player.visibility = 0;
     const loader = SceneLoader.ImportMesh('walking','models/','walking.babylon',scene,(meshes)=>{
-      console.log('loaded')
       const model = meshes[0];
       model.receiveShadows = true;
-      model.rotation = new Vector3(-Math.PI / 2,Math.PI,0);
-      model.scaling = new Vector3(.07,.07,.07);
       model.position.y = 0.3;
       /*const axis = new Vector3(0, 0, 0);
       //axis = axis.normalize();
       const angle = Math.PI / 8;
       const quaternion = Quaternion.RotationAxis(axis, angle);
       model.rotationQuaternion = quaternion;*/
-
+      this.walking = this.model = model;
       player.addChild(model);
       //this.camera.parent = null;
       /*this.sphere.physicsImpostor.dispose();
@@ -387,12 +443,14 @@ class Playground extends React.Component{
     this.egg.position = new Vector3((2+1.5)/2,0,0);
   }
   onSphereHitGround = (main, collided) => {
+    this.changeModel(this.walking);
     if(Math.abs(this.player.physicsImpostor.getLinearVelocity().y) < 4){
+      
       this.touching = true;
     }
   }
   onSpacePressed = () =>{
-    
+    this.changeModel(this.flapping);
     //let horizImpulse = this.isNotSpeeding() ?this.keyDirection/2:0;
     let boost = this.getBoost();
     console.log("spacebar boost"+boost);
@@ -415,7 +473,9 @@ class Playground extends React.Component{
     if (e.key === " ") {
       this.onSpacePressed();
     }else if(e.key === "ArrowRight"){
+
       this.keyDirection = 1;
+      this.rotatePlayer(this.keyDirection);
       this.player.physicsImpostor.friction = 0.1;
       this.land.physicsImpostor.friction = 0.1;
       if(!this.accelerateInterval){
@@ -427,6 +487,7 @@ class Playground extends React.Component{
       }
     }else if(e.key === "ArrowLeft"){
       this.keyDirection = -1;
+      this.rotatePlayer(this.keyDirection);
       this.player.physicsImpostor.friction = 0.1;
       this.land.physicsImpostor.friction = 0.1;
       if(!this.accelerateInterval){
@@ -465,6 +526,8 @@ class Playground extends React.Component{
       }
       this.player.physicsImpostor.friction = 1;
       this.land.physicsImpostor.friction = 1;
+    }else if(e.key === " "){
+      this.changeModel(this.flying);
     }
   }
   resetPosAndAngle = () => {
