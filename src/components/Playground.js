@@ -5,6 +5,7 @@ import { PhysicsImpostor } from '@babylonjs/core/Physics/physicsImpostor'
 import { Vector3, Color3,Vector4,Quaternion } from '@babylonjs/core/Maths/math'
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera'
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight'
+import { SpotLight } from '@babylonjs/core/Lights/spotLight'
 import { PointLight } from '@babylonjs/core/Lights/pointLight'
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight'
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator'
@@ -51,19 +52,19 @@ class Playground extends React.Component{
   onSceneMount = ({ canvas, scene, engine }) => {
     window.scene = scene // for debug
     this.scene = scene;
-    var gravityVector = new Vector3(0,-9.81, 0);
-    var physicsPlugin = new CannonJSPlugin();
+    const gravityVector = new Vector3(0,-9.81, 0);
+    const physicsPlugin = new CannonJSPlugin();
     scene.enablePhysics(gravityVector, physicsPlugin);
     // camera
     this.camera = this.createCamera(scene,canvas);
     // sky (https://doc.babylonjs.com/extensions/sky)
-    this.createSky(scene);
+    //this.createSky(scene);
     // create light
-    //this.createLights(scene);
+    this.createLights(scene);
     this.createDirectionalLight(scene);
     this.createHemisphericLight(scene);
     // scene
-    this.createStaticMesh({ scene })
+    this.createStaticMesh(scene)
     // debug
     if (SHOW_WORLD_AXIS) {
       this.showWorldAxis({ size: 5, scene })
@@ -94,33 +95,61 @@ class Playground extends React.Component{
   createSky(scene){
     const skyMaterial = new SkyMaterial('sky-material', scene)
     skyMaterial.backFaceCulling = false
-    skyMaterial.luminance = 0.8
-    skyMaterial.inclination = 0.18
-    skyMaterial.azimuth = 0.27
+    skyMaterial.luminance = 1
+    skyMaterial.inclination = 0.3
+    skyMaterial.azimuth = .4
     const skybox = BoxBuilder.CreateBox('skybox', { size: 1000 }, scene)
     skybox.material = skyMaterial
   }
 
   createDirectionalLight(scene){
     const direct = new DirectionalLight("direct",new Vector3(-1,-3,3),scene);
+    direct.intensity = 1.3;
     direct.position = new Vector3(10,this.levelHeight,-10);
     this.sg = new ShadowGenerator(1024,direct);
     this.sg.usePoissonSampling = true;
   }
 
   createHemisphericLight(scene){
-    const hemi = new HemisphericLight("hemi",new Vector3(1,2,1),scene);
-    hemi.intensity = 0.3;
+    const hemi = new HemisphericLight("hemi",new Vector3(0,0,-1),scene);
+    hemi.intensity = .15;
   }
 
   createLights(scene){
-    const light = new PointLight('light', new Vector3(this.levelWidth*3/4, 9, -200), scene)
-    const light2 = new PointLight('light', new Vector3(-this.levelWidth*3/4, 32, -200), scene)
-    light.intensity = .7
-    light2.intensity = 0.3
+    const num = 2;
+    this.flickers = new Map();
+    for(let i = 1;i<=num;i++){
+      const light = new SpotLight('pointlight'+i,
+        new Vector3(this.levelWidth*i/num-3*this.levelWidth/4, this.levelHeight/2, this.levelDepth/2-1.5),
+        new Vector3(0,1,.3),
+        Math.PI,
+        10, scene);
+      console.log(light);
+      this.ssg = new ShadowGenerator(512,light);
+      this.ssg.usePoissonSampling = true;
+      //light.range = 5;
+      light.diffuse = new Color3(1,0.4,0.2);
+      light.intensity = 500;
+      this.startLightFlicker(light);
+    }
   }
 
-  createStaticMesh = ({ scene }) => {
+  startLightFlicker(light){
+    this.flickers[light] = {interval:setInterval(()=>this.flickerLight(light),50),position:light.position.clone()};
+  }
+
+  //TODO make it more natural / random
+  flickerLight(light){
+    const now = Date.now();
+    const angle = now*Math.PI/600;
+    const zAngle = now*Math.PI/400;
+    const intensityAngle = now*Math.PI/100;
+    light.intensity = 400 + Math.cos(intensityAngle)*50
+    light.position.x = this.flickers[light].position.x + Math.cos(angle)/8;
+    light.position.z = this.flickers[light].position.z - Math.sin(zAngle)/8;
+  }
+
+  createStaticMesh (scene){
     this.loadModels(scene);
     this.concreteMaterial = this.createConcreteMaterial(scene);
     this.pbr = this.createBricksMaterial(scene);
@@ -133,7 +162,7 @@ class Playground extends React.Component{
     this.createFrontWall(scene);
     this.platform = this.createPlatform(scene);    
     this.egg = this.createEgg(scene);
-    this.player = this.createSphere(scene);
+    this.player = this.createPlayer(scene);
     //this.setEggImpostor();
   }
 
@@ -163,48 +192,58 @@ class Playground extends React.Component{
   }
 
   createCeiling(scene){
-    const defaultMaterial = new StandardMaterial('default-material', scene)
-    defaultMaterial.diffuseColor = new Color3(1, 1, 1)
+    const wallHeight = 2;
+    const faceUV = this.getBoxWrapUV(this.levelWidth,wallHeight,this.levelDepth,5);
     const ceiling = BoxBuilder.CreateBox(
       'ceiling',
-      { width: this.levelWidth,depth: this.levelDepth,height: 0.2 },
+      { width: this.levelWidth,
+        depth: this.levelDepth,
+        height: wallHeight,
+        faceUV:faceUV
+      },
       scene
     )
     
-    ceiling.position.y = 40;
-    ceiling.material = defaultMaterial;
+    ceiling.position.y = 40 + wallHeight/2;
+    ceiling.material = this.concreteMaterial;
     ceiling.physicsImpostor = new PhysicsImpostor(ceiling,PhysicsImpostor.BoxImpostor,{mass:0}, scene);
     return ceiling;
   }
 
   createLeftWall(scene){
-    const defaultMaterial = new StandardMaterial('default-material', scene)
-    defaultMaterial.diffuseColor = new Color3(1, 1, 1)
+    const wallWidth = 2;
+    const faceUV = this.getBoxWrapUV(wallWidth,this.levelHeight,this.levelDepth,5);
     const leftWall = BoxBuilder.CreateBox(
       'leftWall',
-      { width: this.levelHeight,depth: this.levelDepth,height: 0.2 },
+      { width: wallWidth,
+        depth: this.levelDepth,
+        height: this.levelHeight,
+        faceUV:faceUV
+      },
       scene
-    )
-    leftWall.rotation.z = Math.PI/2;
-    leftWall.position.y = 20;
-    leftWall.position.x = -this.levelWidth/2;
-    leftWall.material = defaultMaterial;
+    );
+    leftWall.position.y = this.levelHeight/2;
+    leftWall.position.x = -this.levelWidth/2 + wallWidth/2;
+    leftWall.material = this.concreteMaterial;
     leftWall.physicsImpostor = new PhysicsImpostor(leftWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
     leftWall.receiveShadows = true;
   }
 
   createRightWall(scene){
-    const defaultMaterial = new StandardMaterial('default-material', scene)
-    defaultMaterial.diffuseColor = new Color3(1, 1, 1)
+    const wallWidth = 2;
+    const faceUV = this.getBoxWrapUV(wallWidth,this.levelHeight,this.levelDepth,5);
     const rightWall = BoxBuilder.CreateBox(
       'rightWall',
-      { width: this.levelHeight,depth: this.levelDepth,height: 0.2 },
+      { width: wallWidth,
+        depth: this.levelDepth,
+        height: this.levelHeight,
+        faceUV:faceUV
+      },
       scene
     )
-    rightWall.rotation.z = Math.PI/2;
-    rightWall.position.y = 20;
-    rightWall.position.x = this.levelWidth/2;
-    rightWall.material = defaultMaterial;
+    rightWall.position.y = this.levelHeight/2;
+    rightWall.position.x = this.levelWidth/2 - wallWidth/2;;
+    rightWall.material = this.concreteMaterial;
     rightWall.physicsImpostor = new PhysicsImpostor(rightWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
     rightWall.receiveShadows = true;
   }
@@ -224,8 +263,8 @@ class Playground extends React.Component{
   }
 
   createBackWall(scene){
-    let wallWidth = 20;
-    let wallHeight = 20;
+    const wallWidth = 20;
+    const wallHeight = 20;
     const backWall = GroundBuilder.CreateGroundFromHeightMap(
       'backWall','textures/bricks_rustic_height.png',
       { height:  wallHeight,width:wallWidth,
@@ -235,19 +274,8 @@ class Playground extends React.Component{
     
           backWall.material = this.pbr;
           backWall.receiveShadows = true;
-          let tmpBackWall = new Mesh("tmpBackWall",scene);
-          for(let x = 0;x<this.levelWidth;x += wallWidth){
-            for(let y = 0;y<this.levelHeight;y += wallHeight){
-              if(x === 0 && y === 0){
-                backWall.parent = tmpBackWall;
-                backWall.position = new Vector3(x,y,0);
-              }else{
-                let newWall = backWall.createInstance("wallTile"+x+"_"+y);
-                newWall.parent = tmpBackWall;
-                newWall.position = new Vector3(x,y,0);
-              }
-            }
-          }
+          //this.ssg.getShadowMap().renderList.push(backWall);
+          const tmpBackWall = this.createBackWallGrid(backWall,scene,wallWidth,wallHeight);
           tmpBackWall.position.z = this.levelDepth/2;
           tmpBackWall.position.y = this.levelHeight/2 - wallHeight/2;
           tmpBackWall.position.x= -this.levelWidth/2;
@@ -259,16 +287,34 @@ class Playground extends React.Component{
     
   }
 
+  createBackWallGrid(backWall,scene,wallWidth,wallHeight){
+    const tmpBackWall = new Mesh("tmpBackWall",scene);
+    for(let x = 0;x<this.levelWidth;x += wallWidth){
+      for(let y = 0;y<this.levelHeight;y += wallHeight){
+        if(x === 0 && y === 0){
+          backWall.parent = tmpBackWall;
+          backWall.position = new Vector3(x,y,0);
+        }else{
+          const newWall = backWall.createInstance("wallTile"+x+"_"+y);
+          newWall.parent = tmpBackWall;
+          newWall.position = new Vector3(x,y,0);
+        }
+      }
+    }
+    return tmpBackWall;
+  }
+
   createFrontWall(scene){
     const frontWall = PlaneBuilder.CreatePlane(
       'frontWall',
-      { height: this.levelWidth,width: this.levelHeight,sideOrientation: Mesh.BACKSIDE},
+      { height: this.levelWidth,width: this.levelHeight},
       scene
     )
+    frontWall.visibility = 0;
     frontWall.rotation.z= Math.PI/2;
     frontWall.position.z = -this.levelDepth/2;
     frontWall.position.y = this.levelHeight/2;
-    frontWall.physicsImpostor = new PhysicsImpostor(frontWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    //frontWall.physicsImpostor = new PhysicsImpostor(frontWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
   }
 
   createConcreteMaterial(scene){
@@ -294,9 +340,9 @@ class Playground extends React.Component{
     side 4 faces the positive y direction
     side 5 faces the negative y direction
     */
-    var faceUV = new Array(6);
+    const faceUV = new Array(6);
 
-    for (var i = 0; i < 6; i++) {
+    for (let i = 0; i < 6; i++) {
       if(i === 0 || i === 1){
         faceUV[i] = new Vector4(0, 0,width/textureSize,height/textureSize);
       }else if(i === 2 || i === 3){
@@ -386,7 +432,7 @@ class Playground extends React.Component{
       console.log("checkAssets finish");
     }
   }
-  changeModel(model){
+  changePlayerModel(model){
     if(model === this.model){
       return;
     }
@@ -399,67 +445,73 @@ class Playground extends React.Component{
     model.position = new Vector3(0,0.3,0);
     this.rotatePlayer(this.keyDirection,lastQuaternion);
   }
-  createSphere(scene){
-    const player = BoxBuilder.CreateBox("sphere",{width:4,height:6.1,depth:2},scene);
+
+  createPlayer(scene){
+    const player = BoxBuilder.CreateBox("player",{width:4,height:6.1,depth:2},scene);
     player.visibility = 0;
     const loader = SceneLoader.ImportMesh('walking','models/','walking.babylon',scene,(meshes)=>{
       const model = meshes[0];
       model.receiveShadows = true;
       model.position.y = 0.3;
-      /*const axis = new Vector3(0, 0, 0);
-      //axis = axis.normalize();
-      const angle = Math.PI / 8;
-      const quaternion = Quaternion.RotationAxis(axis, angle);
-      model.rotationQuaternion = quaternion;*/
       this.walking = this.model = model;
       player.addChild(model);
-      //this.camera.parent = null;
-      /*this.sphere.physicsImpostor.dispose();
-      this.sphere.dispose();*/
-      //model.parent = this.sphere;
       player.position.y = 3;
+      player.position.z = 0;
       player.physicsImpostor = new PhysicsImpostor(player,PhysicsImpostor.SphereImpostor,{mass:0.2,restitution: 0,friction:1,stiffness:0}, scene);
-      player.physicsImpostor.registerOnPhysicsCollide([this.platform.physicsImpostor,this.land.physicsImpostor], this.onSphereHitGround);
+      player.physicsImpostor.registerOnPhysicsCollide([this.platform.physicsImpostor,this.land.physicsImpostor], this.onPlayerHitGround);
       this.sg.getShadowMap().renderList.push(model);
       this.setEggImpostor();
     },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));    
-
       if(ATTACH_CAMERA){
-        this.camera.parent = player;
+        this.attachCameraToPlayer(player);
       }
-
-      //sphere.physicsImpostor = new PhysicsImpostor(sphere,PhysicsImpostor.SphereImpostor,{mass:0.2,restitution: 0,friction:1,stiffness:0}, scene);
-      
     return player;
+  }
+
+  attachCameraToPlayer(player){
+    if(this.player){
+      player = this.player;
+    }
+    this.camera.parent = player;
+    this.camera.position.y = 3;
   }
 
   setEggImpostor(scene){
     this.egg.physicsImpostor = new PhysicsImpostor(this.egg,PhysicsImpostor.SphereImpostor,{mass:1, restitution: 0.2,friction:0.3}, this.scene);
-    this.player.physicsImpostor.registerOnPhysicsCollide(this.egg.physicsImpostor, this.onSphereHitEgg);
+    this.player.physicsImpostor.registerOnPhysicsCollide(this.egg.physicsImpostor, this.onPlayerHitEgg);
   }
-  onSphereHitEgg = (main, collided) => {
+
+  onPlayerHitEgg = (main, collided) => {
     this.egg.physicsImpostor.dispose();
     this.egg.parent = this.player;
     this.egg.position = new Vector3((2+1.5)/2,0,0);
   }
-  onSphereHitGround = (main, collided) => {
-    this.changeModel(this.walking);
+
+  onPlayerHitGround = (main, collided) => {
+    //this.player.getBoundingInfo.
+    if(main.object.position.y > collided.object.position.y){
+      this.changePlayerModel(this.walking);
+    }
+    
     if(Math.abs(this.player.physicsImpostor.getLinearVelocity().y) < 4){
-      
       this.touching = true;
     }
   }
+
   onSpacePressed = () =>{
-    this.changeModel(this.flapping);
-    //let horizImpulse = this.isNotSpeeding() ?this.keyDirection/2:0;
-    let boost = this.getBoost();
-    console.log("spacebar boost"+boost);
-    this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.7*boost, 1, 0), this.player.getAbsolutePosition())
-    this.resetPosAndAngle();
+    this.changePlayerModel(this.flapping);
+    this.resetPlayerVelocity();
+    this.sendPlayerFlapImpulse();
     this.touching = false;
   }
+
+  sendPlayerFlapImpulse(){
+    const boost = this.getBoost();
+    console.log("sendPlayerFlapImpulse boost"+boost);
+    this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.7*boost, 1, 0), this.player.getAbsolutePosition());
+  }
   getBoost(){
-    let vel = this.player.physicsImpostor.getLinearVelocity().x;
+    const vel = this.player.physicsImpostor.getLinearVelocity().x;
     return vel/Math.abs(vel) === this.keyDirection ? 1 : 2;
   }
   isNotSpeeding(){
@@ -468,50 +520,64 @@ class Playground extends React.Component{
   isTouchingGround(){
     return this.touching;
   }
+  setLowPlayerFriction(){
+    this.player.physicsImpostor.friction = 0.1;
+    this.land.physicsImpostor.friction = 0.1;
+  }
+  setHighPlayerFriction(){
+    this.player.physicsImpostor.friction = 1;
+    this.land.physicsImpostor.friction = 1;
+  }
+  startPlayerMoveInterval(){
+    if(!this.accelerateInterval){
+      const self = this;
+      this.accelerateInterval = setInterval(()=>{
+        //console.log("setInterval accelerate");
+        self.accelerate.apply(self);
+      },200);
+    }
+  }
+  endPlayerMoveInterval(){
+    if(this.accelerateInterval){
+      console.log("clearInterval");
+      clearInterval(this.accelerateInterval);
+      this.accelerateInterval = null;
+    }
+  }
+  playerHasEgg(){
+    return this.player.getChildren().includes(this.egg)
+  }
+  launchEgg(){
+    this.egg.parent = null;
+    this.egg.position = this.player.getAbsolutePosition();
+    this.egg.position.x += 5*this.keyDirection;
+    this.setEggImpostor();
+    this.egg.position.z = 0;
+    const vel = this.egg.physicsImpostor.getLinearVelocity();
+    vel.z = 0;
+    this.egg.physicsImpostor.setLinearVelocity(vel);
+    this.egg.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
+    this.egg.rotation = new Vector3(0,0,0);
+    this.egg.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*20, 0, 0), this.egg.getAbsolutePosition());
+  }
   onKeyDown = (e) => {
     e.preventDefault();
     if (e.key === " ") {
       this.onSpacePressed();
     }else if(e.key === "ArrowRight"){
-
       this.keyDirection = 1;
       this.rotatePlayer(this.keyDirection);
-      this.player.physicsImpostor.friction = 0.1;
-      this.land.physicsImpostor.friction = 0.1;
-      if(!this.accelerateInterval){
-        let self = this;
-        this.accelerateInterval = setInterval(()=>{
-          //console.log("setInterval accelerate");
-          self.accelerate.apply(self);
-        },200);
-      }
+      this.setLowPlayerFriction();
+      this.startPlayerMoveInterval();
     }else if(e.key === "ArrowLeft"){
       this.keyDirection = -1;
       this.rotatePlayer(this.keyDirection);
-      this.player.physicsImpostor.friction = 0.1;
-      this.land.physicsImpostor.friction = 0.1;
-      if(!this.accelerateInterval){
-        let self = this;
-        this.accelerateInterval = setInterval(()=>{
-          //console.log("setInterval accelerate");
-          self.accelerate.apply(self);
-        },200);
-      }
+      this.setLowPlayerFriction();
+      this.startPlayerMoveInterval();
     }else if(e.key === "AltGraph"){
-      if(this.player.getChildren().includes(this.egg)){
+      if(this.playerHasEgg()){
         console.log("AltGraph");
-        this.egg.parent = null;
-        this.egg.position = this.player.getAbsolutePosition();
-        this.egg.position.x += 5*this.keyDirection;
-        this.setEggImpostor();
-        this.egg.position.z = 0;
-        let vel = this.egg.physicsImpostor.getLinearVelocity();
-        vel.z = 0;
-        this.egg.physicsImpostor.setLinearVelocity(vel);
-        this.egg.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
-        this.egg.rotation = new Vector3(0,0,0);
-        this.egg.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*20, 0, 0), this.egg.getAbsolutePosition());
-
+        this.launchEgg();
       }
     }
   }
@@ -519,36 +585,36 @@ class Playground extends React.Component{
     e.preventDefault();
     if(e.key === "ArrowRight" || e.key === "ArrowLeft"){
       this.keyDirection = 0;
-      if(this.accelerateInterval){
-        console.log("clearInterval");
-        clearInterval(this.accelerateInterval);
-        this.accelerateInterval = null;
-      }
-      this.player.physicsImpostor.friction = 1;
-      this.land.physicsImpostor.friction = 1;
+      this.endPlayerMoveInterval();
+      this.setHighPlayerFriction();
     }else if(e.key === " "){
-      this.changeModel(this.flying);
+      this.changePlayerModel(this.flying);
     }
   }
-  resetPosAndAngle = () => {
+  resetPlayerVelocity = () => {
     if(!this.player || !this.player.physicsImpostor){
       return;
     }
-    let vel = this.player.physicsImpostor.getLinearVelocity();
+    const vel = this.player.physicsImpostor.getLinearVelocity();
     vel.z = 0;
     this.player.physicsImpostor.setLinearVelocity(vel);
-    this.player.position.z = 0;
+    //this.player.position.z = this.levelDepth/2;
     this.player.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
+    //this can't work, must use quaternion
     this.player.rotation = new Vector3(0,0,0);
   }
   accelerate(){
-    this.resetPosAndAngle();
+    this.resetPlayerVelocity();
     if( this.keyDirection !== 0 &&
-        this.isNotSpeeding() &&
-        this.isTouchingGround() ){
-      let boost = this.getBoost();
-      this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*1*boost, 0, 0), this.player.getAbsolutePosition());
+          this.isNotSpeeding() &&
+          this.isTouchingGround() ){
+      this.sendPlayerStepImpulse();
     }
+  }
+
+  sendPlayerStepImpulse(){
+    const boost = this.getBoost();
+    this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*1*boost, 0, 0), this.player.getAbsolutePosition());
   }
 
   showWorldAxis = ({ size, scene }) => {
@@ -580,7 +646,7 @@ class Playground extends React.Component{
 
   // initialise scene rendering
   render(){
-    return <BabylonScene onSceneMount={this.onSceneMount} onKeyDown={this.onKeyDown} onKeyUp={this.onKeyUp} onRender={this.resetPosAndAngle}/>
+    return <BabylonScene onSceneMount={this.onSceneMount} onKeyDown={this.onKeyDown} onKeyUp={this.onKeyUp} onRender={this.resetPlayerVelocity}/>
   }
 }
 
