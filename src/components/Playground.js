@@ -120,7 +120,11 @@ class Playground extends React.Component{
     this.flickers = new Map();
     for(let i = 1;i<=num;i++){
       const light = new SpotLight('pointlight'+i,
-        new Vector3(this.levelWidth*i/num-3*this.levelWidth/4, this.levelHeight/2, this.levelDepth/2-1.5),
+        new Vector3(
+          this.levelWidth*i/num-3*this.levelWidth/4,
+          this.levelHeight/2,
+          this.levelDepth/2-1.5
+        ),
         new Vector3(0,1,.3),
         Math.PI,
         10, scene);
@@ -135,7 +139,10 @@ class Playground extends React.Component{
   }
 
   startLightFlicker(light){
-    this.flickers[light] = {interval:setInterval(()=>this.flickerLight(light),50),position:light.position.clone()};
+    this.flickers[light] = {
+      interval:setInterval(()=>this.flickerLight(light),50),
+      position:light.position.clone()
+    };
   }
 
   //TODO make it more natural / random
@@ -169,11 +176,20 @@ class Playground extends React.Component{
   createGround(scene){
     const land = GroundBuilder.CreateGround(
       'land',
-      { width: this.levelWidth,height: this.levelDepth, sideOrientation: Mesh.DOUBLESIDE },
+      { 
+        width: this.levelWidth,
+        height: this.levelDepth,
+        sideOrientation: Mesh.DOUBLESIDE
+      },
       scene
     );
     //land.material = defaultMaterial;
-    land.physicsImpostor = new PhysicsImpostor(land,PhysicsImpostor.PlaneImpostor,{mass:0, restitution: 0,stiffness:0,friction:1}, scene);
+    land.physicsImpostor = new PhysicsImpostor(
+      land,
+      PhysicsImpostor.PlaneImpostor,
+      {mass:0, restitution: 0,stiffness:0,friction:1},
+      scene
+    );
     land.visibility = 0;
     return land;
   }
@@ -182,7 +198,13 @@ class Playground extends React.Component{
     const faceUV = this.getBoxWrapUV(this.levelWidth,2,this.levelDepth,5);
     const floor = BoxBuilder.CreateBox(
       'land',
-      { width: this.levelWidth,height: 2, sideOrientation: Mesh.DOUBLESIDE ,depth:this.levelDepth,faceUV:faceUV},
+      { 
+        width: this.levelWidth,
+        height: 2,
+        depth:this.levelDepth,
+        sideOrientation: Mesh.DOUBLESIDE,
+        faceUV:faceUV
+      },
       scene
     )
     //floor.rotation.x = Math.PI/2;
@@ -206,7 +228,12 @@ class Playground extends React.Component{
     
     ceiling.position.y = 40 + wallHeight/2;
     ceiling.material = this.concreteMaterial;
-    ceiling.physicsImpostor = new PhysicsImpostor(ceiling,PhysicsImpostor.BoxImpostor,{mass:0}, scene);
+    ceiling.physicsImpostor = new PhysicsImpostor(
+      ceiling,
+      PhysicsImpostor.BoxImpostor,
+      {mass:0},
+      scene
+    );
     return ceiling;
   }
 
@@ -225,7 +252,12 @@ class Playground extends React.Component{
     leftWall.position.y = this.levelHeight/2;
     leftWall.position.x = -this.levelWidth/2 + wallWidth/2;
     leftWall.material = this.concreteMaterial;
-    leftWall.physicsImpostor = new PhysicsImpostor(leftWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
+    leftWall.physicsImpostor = new PhysicsImpostor(
+      leftWall,
+      PhysicsImpostor.BoxImpostor,
+      {mass:0, restitution: 0.9},
+      scene
+    );
     leftWall.receiveShadows = true;
   }
 
@@ -244,7 +276,12 @@ class Playground extends React.Component{
     rightWall.position.y = this.levelHeight/2;
     rightWall.position.x = this.levelWidth/2 - wallWidth/2;;
     rightWall.material = this.concreteMaterial;
-    rightWall.physicsImpostor = new PhysicsImpostor(rightWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.9}, scene);
+    rightWall.physicsImpostor = new PhysicsImpostor(
+      rightWall,
+      PhysicsImpostor.BoxImpostor,
+      {mass:0, restitution: 0.9},
+      scene
+    );
     rightWall.receiveShadows = true;
   }
 
@@ -256,7 +293,10 @@ class Playground extends React.Component{
     pbr.useRoughnessFromMetallicTextureAlpha = false;
     pbr.useRoughnessFromMetallicTextureGreen = true;
     pbr.useMetallnessFromMetallicTextureBlue = true;
-    pbr.metallicTexture = new Texture("textures/bricks_rustic_metallic_roughness.png", scene);
+    pbr.metallicTexture = new Texture(
+      "textures/bricks_rustic_metallic_roughness.png",
+      scene
+    );
     pbr.invertNormalMapX = true;
     pbr.invertNormalMapY = true;
     return pbr;
@@ -275,11 +315,21 @@ class Playground extends React.Component{
           backWall.material = this.pbr;
           backWall.receiveShadows = true;
           //this.ssg.getShadowMap().renderList.push(backWall);
-          const tmpBackWall = this.createBackWallGrid(backWall,scene,wallWidth,wallHeight);
+          const tmpBackWall = this.createBackWallGrid(
+            backWall,
+            scene,
+            wallWidth,
+            wallHeight
+          );
           tmpBackWall.position.z = this.levelDepth/2;
           tmpBackWall.position.y = this.levelHeight/2 - wallHeight/2;
           tmpBackWall.position.x= -this.levelWidth/2;
-          tmpBackWall.physicsImpostor = new PhysicsImpostor(tmpBackWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+          tmpBackWall.physicsImpostor = new PhysicsImpostor(
+            tmpBackWall,
+            PhysicsImpostor.BoxImpostor,
+            {mass:0, restitution: 0.1,friction:0.01},
+            scene
+          );
         }
       },
       scene
@@ -314,18 +364,26 @@ class Playground extends React.Component{
     frontWall.rotation.z= Math.PI/2;
     frontWall.position.z = -this.levelDepth/2;
     frontWall.position.y = this.levelHeight/2;
-    //frontWall.physicsImpostor = new PhysicsImpostor(frontWall,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    /*frontWall.physicsImpostor = new PhysicsImpostor(
+      frontWall,
+      PhysicsImpostor.BoxImpostor,
+      {mass:0, restitution: 0.1,friction:0.01},
+      scene
+    );*/
   }
 
   createConcreteMaterial(scene){
     const pbr = new PBRMaterial('concrete', scene)
     pbr.forceIrradianceInFragment = true;
-    pbr.albedoTexture = new Texture("textures/concrete_worn_albedo.png", scene);
-    pbr.bumpTexture = new Texture("textures/concrete_worn_normal.png", scene);
+    pbr.albedoTexture = new Texture("textures/concrete_worn_albedo.png",scene);
+    pbr.bumpTexture = new Texture("textures/concrete_worn_normal.png",scene);
     pbr.useRoughnessFromMetallicTextureAlpha = false;
     pbr.useRoughnessFromMetallicTextureGreen = true;
     pbr.useMetallnessFromMetallicTextureBlue = true;
-    pbr.metallicTexture = new Texture("textures/concrete_worn_metallic_roughness.png", scene);
+    pbr.metallicTexture = new Texture(
+      "textures/concrete_worn_metallic_roughness.png",
+      scene
+    );
     pbr.invertNormalMapX = true;
     pbr.invertNormalMapY = true;
     return pbr;
@@ -366,7 +424,12 @@ class Playground extends React.Component{
     
     platform.position.y = 10;
     platform.material = this.concreteMaterial;
-    platform.physicsImpostor = new PhysicsImpostor(platform,PhysicsImpostor.BoxImpostor,{mass:0, restitution: 0.1,friction:0.01}, scene);
+    platform.physicsImpostor = new PhysicsImpostor(
+      platform,
+      PhysicsImpostor.BoxImpostor,
+      {mass:0, restitution: 0.1,friction:0.01},
+      scene
+    );
     this.sg.getShadowMap().renderList.push(platform);
     platform.receiveShadows = true;
     return platform;
@@ -401,27 +464,44 @@ class Playground extends React.Component{
 
   loadModels(scene){
     this.assetsNum = 4;
-    SceneLoader.ImportMesh('walking_left','models/','walking_left.babylon',scene,(meshes)=>{
-      this.walkingLeft = meshes[0];
-      this.checkAssets(this.walkingLeft);
-    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+    SceneLoader.ImportMesh('walking_left','models/','walking_left.babylon',
+      scene,(meshes)=>{
+        this.walkingLeft = meshes[0];
+        this.checkAssets(this.walkingLeft);
+      },
+      (e)=>console.log('progress'+e),
+      (scene,message)=>console.log('error'+message)
+    );
 
-    SceneLoader.ImportMesh('flying','models/','flying.babylon',scene,(meshes)=>{
-      this.flying = meshes[0];
-      this.checkAssets(this.flying);
-    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+    SceneLoader.ImportMesh('flying','models/','flying.babylon',
+      scene,(meshes)=>{
+        this.flying = meshes[0];
+        this.checkAssets(this.flying);
+      },
+      (e)=>console.log('progress'+e),
+      (scene,message)=>console.log('error'+message)
+    );
 
-    SceneLoader.ImportMesh('running','models/','running.babylon',scene,(meshes)=>{
-      this.running = meshes[0];
-      this.checkAssets(this.running);
-    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+    SceneLoader.ImportMesh('running','models/','running.babylon',
+      scene,(meshes)=>{
+        this.running = meshes[0];
+        this.checkAssets(this.running);
+      },
+      (e)=>console.log('progress'+e),
+      (scene,message)=>console.log('error'+message)
+    );
 
-    SceneLoader.ImportMesh('flapping','models/','flapping.babylon',scene,(meshes)=>{
-      this.flapping = meshes[0];
-      this.checkAssets(this.flapping);
-    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));
+    SceneLoader.ImportMesh('flapping','models/','flapping.babylon',
+      scene,(meshes)=>{
+        this.flapping = meshes[0];
+        this.checkAssets(this.flapping);
+      },
+      (e)=>console.log('progress'+e),
+      (scene,message)=>console.log('error'+message)
+    );
         
   }
+
   checkAssets(model){
     model.visibility = 0;
     model.position.x = 5 * this.assetsNum;
@@ -432,6 +512,7 @@ class Playground extends React.Component{
       console.log("checkAssets finish");
     }
   }
+
   changePlayerModel(model){
     if(model === this.model){
       return;
@@ -447,24 +528,43 @@ class Playground extends React.Component{
   }
 
   createPlayer(scene){
-    const player = BoxBuilder.CreateBox("player",{width:4,height:6.1,depth:2},scene);
+    const player = BoxBuilder.CreateBox(
+      "player",
+      {width:4,height:6.1,depth:2},
+      scene
+    );
     player.visibility = 0;
-    const loader = SceneLoader.ImportMesh('walking','models/','walking.babylon',scene,(meshes)=>{
-      const model = meshes[0];
-      model.receiveShadows = true;
-      model.position.y = 0.3;
-      this.walking = this.model = model;
-      player.addChild(model);
-      player.position.y = 3;
-      player.position.z = 0;
-      player.physicsImpostor = new PhysicsImpostor(player,PhysicsImpostor.SphereImpostor,{mass:0.2,restitution: 0,friction:1,stiffness:0}, scene);
-      player.physicsImpostor.registerOnPhysicsCollide([this.platform.physicsImpostor,this.land.physicsImpostor], this.onPlayerHitGround);
-      this.sg.getShadowMap().renderList.push(model);
-      this.setEggImpostor();
-    },(e)=>console.log('progress'+e),(scene,message)=>console.log('error'+message));    
-      if(ATTACH_CAMERA){
-        this.attachCameraToPlayer(player);
-      }
+    const loader = SceneLoader.ImportMesh('walking','models/',
+      'walking.babylon',
+      scene,
+      (meshes)=>{
+        const model = meshes[0];
+        model.receiveShadows = true;
+        model.position.y = 0.3;
+        this.walking = this.model = model;
+        player.addChild(model);
+        player.position.y = 3;
+        player.position.z = 0;
+        player.physicsImpostor = new PhysicsImpostor(
+          player,
+          PhysicsImpostor.SphereImpostor,
+          {mass:0.2,restitution: 0,friction:1,stiffness:0},
+          scene
+        );
+        player.physicsImpostor.registerOnPhysicsCollide(
+          [this.platform.physicsImpostor,this.land.physicsImpostor],
+          this.onPlayerHitGround
+        );
+        this.sg.getShadowMap().renderList.push(model);
+        this.setEggImpostor();
+      },
+      (e)=>console.log('progress'+e),
+      (scene,message)=>console.log('error'+message)
+    );  
+
+    if(ATTACH_CAMERA){
+      this.attachCameraToPlayer(player);
+    }
     return player;
   }
 
@@ -477,8 +577,15 @@ class Playground extends React.Component{
   }
 
   setEggImpostor(scene){
-    this.egg.physicsImpostor = new PhysicsImpostor(this.egg,PhysicsImpostor.SphereImpostor,{mass:1, restitution: 0.2,friction:0.3}, this.scene);
-    this.player.physicsImpostor.registerOnPhysicsCollide(this.egg.physicsImpostor, this.onPlayerHitEgg);
+    this.egg.physicsImpostor = new PhysicsImpostor(
+      this.egg,PhysicsImpostor.SphereImpostor,
+      {mass:1, restitution: 0.2,friction:0.3},
+      this.scene
+    );
+    this.player.physicsImpostor.registerOnPhysicsCollide(
+      this.egg.physicsImpostor,
+      this.onPlayerHitEgg
+    );
   }
 
   onPlayerHitEgg = (main, collided) => {
@@ -508,26 +615,35 @@ class Playground extends React.Component{
   sendPlayerFlapImpulse(){
     const boost = this.getBoost();
     console.log("sendPlayerFlapImpulse boost"+boost);
-    this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*0.7*boost, 1, 0), this.player.getAbsolutePosition());
+    this.player.physicsImpostor.applyImpulse(
+      new Vector3(this.keyDirection*0.7*boost, 1, 0),
+      this.player.getAbsolutePosition()
+    );
   }
+
   getBoost(){
     const vel = this.player.physicsImpostor.getLinearVelocity().x;
     return vel/Math.abs(vel) === this.keyDirection ? 1 : 2;
   }
+
   isNotSpeeding(){
     return this.player.physicsImpostor.getLinearVelocity().x*this.keyDirection < 7;
   }
+
   isTouchingGround(){
     return this.touching;
   }
+
   setLowPlayerFriction(){
     this.player.physicsImpostor.friction = 0.1;
     this.land.physicsImpostor.friction = 0.1;
   }
+
   setHighPlayerFriction(){
     this.player.physicsImpostor.friction = 1;
     this.land.physicsImpostor.friction = 1;
   }
+
   startPlayerMoveInterval(){
     if(!this.accelerateInterval){
       const self = this;
@@ -537,6 +653,7 @@ class Playground extends React.Component{
       },200);
     }
   }
+
   endPlayerMoveInterval(){
     if(this.accelerateInterval){
       console.log("clearInterval");
@@ -544,9 +661,11 @@ class Playground extends React.Component{
       this.accelerateInterval = null;
     }
   }
+
   playerHasEgg(){
     return this.player.getChildren().includes(this.egg)
   }
+
   launchEgg(){
     this.egg.parent = null;
     this.egg.position = this.player.getAbsolutePosition();
@@ -558,8 +677,12 @@ class Playground extends React.Component{
     this.egg.physicsImpostor.setLinearVelocity(vel);
     this.egg.physicsImpostor.setAngularVelocity(new Vector3(0,0,0));
     this.egg.rotation = new Vector3(0,0,0);
-    this.egg.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*20, 0, 0), this.egg.getAbsolutePosition());
+    this.egg.physicsImpostor.applyImpulse(
+      new Vector3(this.keyDirection*20, 0, 0),
+      this.egg.getAbsolutePosition()
+    );
   }
+
   onKeyDown = (e) => {
     e.preventDefault();
     if (e.key === " ") {
@@ -581,6 +704,7 @@ class Playground extends React.Component{
       }
     }
   }
+
   onKeyUp = (e) => {
     e.preventDefault();
     if(e.key === "ArrowRight" || e.key === "ArrowLeft"){
@@ -591,6 +715,7 @@ class Playground extends React.Component{
       this.changePlayerModel(this.flying);
     }
   }
+
   resetPlayerVelocity = () => {
     if(!this.player || !this.player.physicsImpostor){
       return;
@@ -603,6 +728,7 @@ class Playground extends React.Component{
     //this can't work, must use quaternion
     this.player.rotation = new Vector3(0,0,0);
   }
+
   accelerate(){
     this.resetPlayerVelocity();
     if( this.keyDirection !== 0 &&
@@ -614,7 +740,10 @@ class Playground extends React.Component{
 
   sendPlayerStepImpulse(){
     const boost = this.getBoost();
-    this.player.physicsImpostor.applyImpulse(new Vector3(this.keyDirection*1*boost, 0, 0), this.player.getAbsolutePosition());
+    this.player.physicsImpostor.applyImpulse(
+      new Vector3(this.keyDirection*1*boost, 0, 0),
+      this.player.getAbsolutePosition()
+    );
   }
 
   showWorldAxis = ({ size, scene }) => {
@@ -646,7 +775,12 @@ class Playground extends React.Component{
 
   // initialise scene rendering
   render(){
-    return <BabylonScene onSceneMount={this.onSceneMount} onKeyDown={this.onKeyDown} onKeyUp={this.onKeyUp} onRender={this.resetPlayerVelocity}/>
+    return <BabylonScene 
+              onSceneMount={this.onSceneMount}
+              onKeyDown={this.onKeyDown}
+              onKeyUp={this.onKeyUp}
+              onRender={this.resetPlayerVelocity}
+            />
   }
 }
 
