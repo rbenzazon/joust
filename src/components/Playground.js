@@ -104,7 +104,7 @@ class Playground extends React.Component{
 
   createDirectionalLight(scene){
     const direct = new DirectionalLight("direct",new Vector3(-1,-3,3),scene);
-    direct.intensity = 1.3;
+    direct.intensity = 2.5;
     direct.position = new Vector3(10,this.levelHeight,-10);
     this.sg = new ShadowGenerator(1024,direct);
     this.sg.usePoissonSampling = true;
