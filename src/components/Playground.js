@@ -616,7 +616,7 @@ class Playground extends React.Component{
     const boost = this.getBoost();
     console.log("sendPlayerFlapImpulse boost"+boost);
     this.player.physicsImpostor.applyImpulse(
-      new Vector3(this.keyDirection*0.7*boost, 1, 0),
+      new Vector3(this.keyDirection*0.6*boost, .8, 0),
       this.player.getAbsolutePosition()
     );
   }
